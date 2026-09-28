@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { enfModeIIEnergyCsvInputSchema, importEnfModeIIEnergyCsv } from "./enf-mode-ii-energy-csv.ts";
+import { trySymlink } from "../symlink.test-support.ts";
 
 const process = {
   printerId: "creality-k1c",
@@ -131,6 +132,5 @@ test("rejects wrong selected run, sign mismatch, malformed CSV and symlink", asy
   await writeFile(path, "specimen,run,force_kN,opening_um\nA,c20,-0.01,90\nA,c20,-0.02,180\nA,c20,-0.03,\"bad\n");
   await assert.rejects(importEnfModeIIEnergyCsv(base(path)), /unterminated quoted field/i);
   const link = join(root, "linked.csv");
-  await symlink(path, link);
-  await assert.rejects(importEnfModeIIEnergyCsv(base(link)), /regular non-symlink file/i);
+  if (await trySymlink(context, path, link)) await assert.rejects(importEnfModeIIEnergyCsv(base(link)), /regular non-symlink file/i);
 });

@@ -6,6 +6,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createReferenceSearchClient } from "../src/codex/reference-search-client.ts";
 import { referenceSearchResultSchema } from "../src/codex/reference-search.ts";
 import { resolveReferenceSearchProfile } from "../src/codex/analysis-profile.ts";
+import { resolveCodexExecutable } from "../src/codex/environment.ts";
 import { PlasticitySession, createServer, strengthDependenciesForSession } from "../src/server.ts";
 
 interface Options {
@@ -18,12 +19,12 @@ interface Options {
 }
 
 const options = parseArgs(process.argv.slice(2));
-const profile = await resolveReferenceSearchProfile(process.env.PLASTICITY_CODEX_EXECUTABLE ?? "codex");
+const profile = await resolveReferenceSearchProfile(resolveCodexExecutable(process.env.PLASTICITY_CODEX_EXECUTABLE ?? "codex"));
 if (!profile.available) throw new Error(profile.reason);
 await mkdir(options.output, { recursive: false, mode: 0o700 });
 
 const referenceSearch = await createReferenceSearchClient(profile.profile, {
-  executable: process.env.PLASTICITY_CODEX_EXECUTABLE ?? "codex",
+  executable: resolveCodexExecutable(process.env.PLASTICITY_CODEX_EXECUTABLE ?? "codex"),
   cwd: process.cwd(),
 });
 const session = new PlasticitySession();

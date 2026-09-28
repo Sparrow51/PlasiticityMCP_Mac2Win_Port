@@ -3,11 +3,13 @@ import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { parseCodeAsterCzmAcceptance, type CodeAsterCzmAcceptance } from "../src/strength/fem/code-aster-czm-acceptance.ts";
 import { runCodeAsterCohesiveCase } from "../src/strength/fem/code-aster-cohesive-runner.ts";
 import { codeAsterTuronDeckInputFromCalibration } from "../src/strength/fem/code-aster-turon-deck.ts";
 import { runCodeAsterTuronCase } from "../src/strength/fem/code-aster-turon-runner.ts";
+import { defaultPythonExecutable } from "../src/strength/fem/python.ts";
 
 const IMAGE = "scimulate/code_aster:15.2@sha256:b4a2bf82ef4c52a719187bb6b3c7f6d0ac512da7a66a8bada4bf0c857b104810";
 const IMAGE_17 = "simvia/code_aster@sha256:d8d19ea91989eac0d38195bc5795c54c69f530f7196f53d67697ffa57c9106d5";
@@ -90,7 +92,7 @@ async function runCodeAsterModeILawAcceptance(): Promise<{
     for (const modeILaw of ["CZM_EXP_REG", "CZM_LIN_REG"] as const) {
       const caseWorkspace = join(workspace, modeILaw.toLowerCase());
       await mkdir(caseWorkspace);
-      const generated = await runLocal("python3", [TURON_3D_ACCEPTANCE.pathname, caseWorkspace]);
+      const generated = await runLocal(defaultPythonExecutable(), [fileURLToPath(TURON_3D_ACCEPTANCE), caseWorkspace]);
       if (generated.code !== 0) throw new Error(`Could not generate the synthetic 3D cohesive mesh: ${generated.output.slice(-4_000)}`);
       const currentMeshSummary = JSON.parse(generated.output) as Record<string, unknown>;
       if (currentMeshSummary.materialATetrahedronCount !== 48 || currentMeshSummary.materialBTetrahedronCount !== 48
@@ -168,7 +170,7 @@ async function runCodeAster17ThreeDimensionalTuronAcceptance(orthotropic = false
 }> {
   const workspace = await mkdtemp(join(tmpdir(), "plasticity-czm-turon-3d-"));
   try {
-    const generated = await runLocal("python3", [TURON_3D_ACCEPTANCE.pathname, workspace]);
+    const generated = await runLocal(defaultPythonExecutable(), [fileURLToPath(TURON_3D_ACCEPTANCE), workspace]);
     if (generated.code !== 0) throw new Error(`Could not generate the 3D CZM_TURON acceptance job: ${generated.output.slice(-4_000)}`);
     const meshSummary = JSON.parse(generated.output) as Record<string, unknown>;
     if (meshSummary.materialATetrahedronCount !== 48 || meshSummary.materialBTetrahedronCount !== 48

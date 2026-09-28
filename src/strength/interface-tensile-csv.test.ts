@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import { importInterfaceTensileCsv } from "./interface-tensile-csv.ts";
+import { trySymlink } from "../symlink.test-support.ts";
 
 test("imports measured tensile peaks by specimen and preserves source traceability", async (context) => {
   const directory = await mkdtemp(join(tmpdir(), "plasticity-interface-csv-"));
@@ -112,7 +113,7 @@ test("refuses a symbolic-link input instead of following it", async (context) =>
   const actualPath = join(directory, "actual.csv");
   const linkPath = join(directory, "link.csv");
   await writeFile(actualPath, "specimen,force\nA,2\n");
-  await symlink(actualPath, linkPath);
+  if (!(await trySymlink(context, actualPath, linkPath))) return;
 
   await assert.rejects(importInterfaceTensileCsv({
     path: linkPath,

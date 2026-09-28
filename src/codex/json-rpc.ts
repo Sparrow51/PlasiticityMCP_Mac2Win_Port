@@ -28,6 +28,8 @@ type CloseListener = (error: Error) => void;
 export class JsonRpcProcess {
   private readonly child: ChildProcessWithoutNullStreams;
   private readonly pending = new Map<number, PendingRequest>();
+  // Requests given up on locally (abort/timeout); the server may still answer them.
+  private readonly abandoned = new Set<number>();
   private readonly notificationListeners = new Set<NotificationListener>();
   private readonly requestListeners = new Set<RequestListener>();
   private readonly closeListeners = new Set<CloseListener>();
@@ -68,6 +70,7 @@ export class JsonRpcProcess {
         const pending = this.pending.get(id);
         if (!pending) return;
         this.pending.delete(id);
+        this.abandoned.add(id);
         pending.cleanup();
         reject(abortError());
       };
@@ -80,6 +83,7 @@ export class JsonRpcProcess {
           const pending = this.pending.get(id);
           if (!pending) return;
           this.pending.delete(id);
+          this.abandoned.add(id);
           pending.cleanup();
           reject(new Error(`app-server request timed out after ${options.timeoutMs} ms: ${method}`));
         }, options.timeoutMs);
@@ -128,10 +132,15 @@ export class JsonRpcProcess {
     if (this.child.exitCode !== null || this.child.signalCode !== null) return;
     this.closing = true;
     const exited = new Promise<void>((resolve) => this.child.once("exit", () => resolve()));
-    this.child.kill("SIGTERM");
-    const timer = setTimeout(() => this.child.kill("SIGKILL"), 2_000);
+    this.child.stdin.end();
+    // Windows has no catchable SIGTERM (kill() terminates immediately), so give
+    // the app-server a moment to exit on stdin EOF before forcing it.
+    const graceMs = process.platform === "win32" ? 1_000 : 0;
+    const terminate = setTimeout(() => this.child.kill("SIGTERM"), graceMs);
+    const forceKill = setTimeout(() => this.child.kill("SIGKILL"), graceMs + 2_000);
     await exited;
-    clearTimeout(timer);
+    clearTimeout(terminate);
+    clearTimeout(forceKill);
   }
 
   private write(message: unknown): void {
@@ -186,6 +195,7 @@ export class JsonRpcProcess {
     }
     if (typeof value.id !== "number") throw new Error("Invalid app-server response ID");
     const pending = this.pending.get(value.id);
+    if (!pending && this.abandoned.delete(value.id)) return;
     if (!pending) throw new Error(`Unexpected app-server response ID ${value.id}`);
     this.pending.delete(value.id);
     pending.cleanup();

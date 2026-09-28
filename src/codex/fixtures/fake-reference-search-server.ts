@@ -10,6 +10,7 @@ process.on("SIGINT", () => process.exit(0));
 process.on("exit", () => { if (options.exitRecord) writeFileSync(options.exitRecord, "exited\n", { flag: "a" }); });
 
 const lines = createInterface({ input: process.stdin });
+lines.on("close", () => process.exit(0));
 lines.on("line", (line) => {
   const message = JSON.parse(line) as Record<string, unknown>;
   if (typeof message.method === "string" && options.record) appendFileSync(options.record, `${message.method}\n`);

@@ -10,9 +10,9 @@ import { SqliteProjectStore } from "../../src/server/project-store.ts";
 
 test("an annotate token cannot edit or access another project", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-pairing-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const projectA = projects.create("A", join(root, "a"));
   const projectB = projects.create("B", join(root, "b"));
@@ -29,9 +29,9 @@ test("an annotate token cannot edit or access another project", async (context) 
 
 test("expires, revokes, and rotates pairing codes into sessions", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-pairing-expiry-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const project = projects.create("A", join(root, "a"));
   const pairing = new PairingService(database);
@@ -49,9 +49,9 @@ test("expires, revokes, and rotates pairing codes into sessions", async (context
 
 test("builds a LAN pairing URL without changing its token", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-pairing-url-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const project = new SqliteProjectStore(database).create("A", join(root, "a"));
   const pairing = new PairingService(database);
   const token = pairing.issue(project.id, "annotate", 10_000, 1_000);
@@ -60,9 +60,9 @@ test("builds a LAN pairing URL without changing its token", async (context) => {
 
 test("lists and revokes project pairings without exposing raw tokens", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-pairing-list-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const project = projects.create("A", join(root, "a"));
   const other = projects.create("B", join(root, "b"));

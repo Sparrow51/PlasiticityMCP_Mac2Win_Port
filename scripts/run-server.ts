@@ -3,6 +3,7 @@ import { delimiter } from "node:path";
 
 import { createAnalysisClient } from "../src/codex/analysis-client.ts";
 import { resolveAnalysisProfile, resolveReferenceSearchProfile } from "../src/codex/analysis-profile.ts";
+import { resolveCodexExecutable } from "../src/codex/environment.ts";
 import { createReferenceSearchClient } from "../src/codex/reference-search-client.ts";
 import { createCompactServer, createServer, PlasticitySession, strengthDependenciesForSession } from "../src/server.ts";
 import { StrengthStore } from "../src/strength/store.ts";
@@ -10,7 +11,7 @@ import { FemReportStore } from "../src/strength/fem/fem-report-store.ts";
 import { PrintedThreadQualificationStore } from "../src/printing/thread-qualification.ts";
 
 const session = new PlasticitySession();
-const executable = process.env.PLASTICITY_CODEX_EXECUTABLE ?? "codex";
+const executable = resolveCodexExecutable(process.env.PLASTICITY_CODEX_EXECUTABLE ?? "codex");
 const profile = await resolveAnalysisProfile(executable);
 const referenceSearchProfile = await resolveReferenceSearchProfile(executable);
 const analysis = profile.available

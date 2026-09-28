@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import { importMmbModeIEnergyCsv, mmbModeIEnergyCsvInputSchema } from "./mmb-mode-i-ii-energy-csv.ts";
+import { trySymlink } from "../symlink.test-support.ts";
 
 const materialProcess = {
   printerId: "creality-k1c", materialId: "creality-cr-pla", profileHash: "b".repeat(64),
@@ -67,6 +68,5 @@ test("validates selected MMB CSV row identity, force sign, units, and symlink sa
   await assert.rejects(importMmbModeIEnergyCsv({ ...base(path), forceSign: "negative" }), /force sign/i);
   await assert.rejects(importMmbModeIEnergyCsv({ ...base(path), specimens: [{ ...base(path).specimens[0], selectedRecordNumber: 99 }] }), /does not exist/i);
   assert.equal(mmbModeIEnergyCsvInputSchema.safeParse({ ...base(path), forceColumn: "specimen" }).success, false);
-  await symlink(path, join(root, "linked.csv"));
-  await assert.rejects(importMmbModeIEnergyCsv({ ...base(path), path: join(root, "linked.csv") }), /regular non-symlink/i);
+  if (await trySymlink(context, path, join(root, "linked.csv"))) await assert.rejects(importMmbModeIEnergyCsv({ ...base(path), path: join(root, "linked.csv") }), /regular non-symlink/i);
 });

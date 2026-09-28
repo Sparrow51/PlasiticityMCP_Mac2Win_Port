@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
+import { WINDOWS_ENVIRONMENT } from "./environment.ts";
 import { JsonRpcProcess } from "./json-rpc.ts";
 
 const execFileAsync = promisify(execFile);
@@ -291,7 +292,7 @@ function asError(value: unknown): Error {
 
 function allowedEnvironment(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const result: NodeJS.ProcessEnv = {};
-  for (const key of ["HOME", "CODEX_HOME", "PATH", "SHELL", "TMPDIR", "USER", "LOGNAME", "LANG", "LC_ALL", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE"]) {
+  for (const key of ["HOME", "CODEX_HOME", "PATH", "SHELL", "TMPDIR", "USER", "LOGNAME", "LANG", "LC_ALL", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE", ...WINDOWS_ENVIRONMENT]) {
     if (source[key] !== undefined) result[key] = source[key];
   }
   return result;

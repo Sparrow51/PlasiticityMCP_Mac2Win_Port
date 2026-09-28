@@ -48,9 +48,9 @@ test("persists a project and monotonically increments its revision", async (cont
 
 test("rejects a stale project mutation without writing an event", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-workbench-stale-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "project.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const project = projects.create("Bracket", root);
 
@@ -64,9 +64,9 @@ test("rejects a stale project mutation without writing an event", async (context
 
 test("lists projects newest first", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-workbench-list-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "project.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
 
   const first = projects.create("First", root);
@@ -77,9 +77,9 @@ test("lists projects newest first", async (context) => {
 
 test("keeps stale feedback attached to its captured model version", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-workbench-versioned-feedback-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "project.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const artifacts = new ArtifactStore(join(root, "artifacts"), database);
   const project = projects.create("Versioned bracket", root);
@@ -99,9 +99,9 @@ test("keeps stale feedback attached to its captured model version", async (conte
 
 test("accepts only validated keys and values from a published dimension form", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-workbench-dimensions-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "project.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const project = projects.create("Validated enclosure", root);
   const published = projects.addStructuredBlock(project.id, 0, {
@@ -119,9 +119,9 @@ test("accepts only validated keys and values from a published dimension form", a
 
 test("persists reference provenance and rejects unattached artifacts", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-workbench-references-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "project.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const artifacts = new ArtifactStore(join(root, "artifacts"), database);
   const project = projects.create("Phone stand", root);
@@ -152,9 +152,9 @@ test("persists reference provenance and rejects unattached artifacts", async (co
 
 test("persists exact construction journal checkpoints with project revisions", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-workbench-journal-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "project.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const project = projects.create("Journaled bracket", root);
   const added = projects.addConstructionJournal(project.id, 0, {

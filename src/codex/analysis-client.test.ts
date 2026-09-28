@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { access, chmod, copyFile, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
+import { access, chmod, copyFile, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +11,7 @@ import type { AnalysisRequest } from "../strength/contracts.ts";
 import { listStrengthMethods } from "../strength/methods.ts";
 import type { AnalysisProfile } from "./analysis-profile.ts";
 import { analysisOutputJsonSchema, createAnalysisClient } from "./analysis-client.ts";
+import { trySymlink } from "../symlink.test-support.ts";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "fake-analysis-server.ts");
 
@@ -201,7 +202,7 @@ test("images must be bounded readable PNG/JPEG/HEIC/HEIF files inside a trusted 
     for (const turn of convertedTurns) {
       const paths = JSON.parse(turn.match(/imagePaths=(\[.*?\]) imageHashes=/)?.[1] ?? "null") as string[];
       assert.equal(paths.length, 1);
-      assert.match(paths[0]!, /plasticity-analysis-[^/]+\/image-0\.jpg$/);
+      assert.match(paths[0]!, /plasticity-analysis-[^\\/]+[\\/]image-0\.jpg$/);
       await assert.rejects(() => access(paths[0]!));
       await assert.rejects(() => access(join(dirname(paths[0]!), "image-0.heic")));
       await assert.rejects(() => access(join(dirname(paths[0]!), "image-0.heif")));
@@ -215,11 +216,9 @@ test("images must be bounded readable PNG/JPEG/HEIC/HEIF files inside a trusted 
   const outside = join(dirname(harness.assetRoot), "outside.jpg");
   await writeFile(outside, Buffer.from([0xff, 0xd8, 0xff]));
   const escaped = join(harness.assetRoot, "escaped.jpg");
-  await symlink(outside, escaped);
-  await assert.rejects(() => client.run({ ...request("escape"), requestId: "escape", imagePaths: [escaped] }, { timeoutMs: 5_000 }), (error: unknown) => hasCode(error, "IMAGE_OUTSIDE_ASSET_ROOT"));
+  if (await trySymlink(context, outside, escaped)) await assert.rejects(() => client.run({ ...request("escape"), requestId: "escape", imagePaths: [escaped] }, { timeoutMs: 5_000 }), (error: unknown) => hasCode(error, "IMAGE_OUTSIDE_ASSET_ROOT"));
   const escapedFromAttachments = join(attachmentRoot, "escaped.jpg");
-  await symlink(outside, escapedFromAttachments);
-  await assert.rejects(() => client.run({ ...request("attachment-escape"), imagePaths: [escapedFromAttachments] }, { timeoutMs: 5_000 }), (error: unknown) => hasCode(error, "IMAGE_OUTSIDE_ASSET_ROOT"));
+  if (await trySymlink(context, outside, escapedFromAttachments)) await assert.rejects(() => client.run({ ...request("attachment-escape"), imagePaths: [escapedFromAttachments] }, { timeoutMs: 5_000 }), (error: unknown) => hasCode(error, "IMAGE_OUTSIDE_ASSET_ROOT"));
   await assert.rejects(() => createAnalysisClient(harness.profile, {
     executable: process.execPath,
     assetRoot: harness.assetRoot,
@@ -261,7 +260,7 @@ test("Codex receives a private image snapshot with the fingerprinted bytes", asy
   const paths = JSON.parse(turnStart.match(/imagePaths=(\[.*?\]) imageHashes=/)?.[1] ?? "null") as string[];
   const hashes = JSON.parse(turnStart.match(/imageHashes=(\[.*?\]) imageSignatures=/)?.[1] ?? "null") as string[];
   assert.equal(paths.length, 1);
-  assert.match(paths[0]!, /plasticity-analysis-[^/]+\/image-0\.png$/);
+  assert.match(paths[0]!, /plasticity-analysis-[^\\/]+[\\/]image-0\.png$/);
   assert.notEqual(paths[0], png);
   assert.deepEqual(hashes, imageHashes);
   await assert.rejects(() => access(paths[0]!));

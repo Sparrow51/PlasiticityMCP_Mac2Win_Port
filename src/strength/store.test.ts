@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, lstat, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -22,6 +22,7 @@ import { syntheticEulerColumnInput, syntheticInput, syntheticPlateInput, withAss
 import { rectangleLoop, sectionScenarioFixture } from "./section-fixtures.test.ts";
 import type { SectionStrengthScanRecord } from "./section-scan-contracts.ts";
 import { inputHash, reportView, StrengthStore } from "./store.ts";
+import { trySymlink } from "../symlink.test-support.ts";
 
 test("reports round-trip through exclusive private files", async (context) => {
   const root = await temporaryRoot(context);
@@ -30,7 +31,7 @@ test("reports round-trip through exclusive private files", async (context) => {
   const saved = await store.saveReport(input, calculate(input));
   assert.deepEqual(await store.readReport(saved.id), saved);
   const mode = (await lstat(join(root, "reports", `${saved.id}.json`))).mode & 0o777;
-  assert.equal(mode, 0o600);
+  if (process.platform !== "win32") assert.equal(mode, 0o600);
 });
 
 test("reads a literal legacy report without adding a kind discriminator", async (context) => {
@@ -92,7 +93,7 @@ test("section reports round-trip immutably through private files", async (contex
   input.pointForces[0]!.forceN[2] = 999;
   assert.equal(saved.input.pointForces[0]!.forceN[2], 100);
   const mode = (await lstat(join(root, "reports", `${saved.id}.json`))).mode & 0o777;
-  assert.equal(mode, 0o600);
+  if (process.platform !== "win32") assert.equal(mode, 0o600);
 });
 
 test("persists the versioned Bredt-Batho single-cell torsion result", async (context) => {
@@ -393,8 +394,7 @@ test("store rejects traversal, symlinks and invalid persisted JSON", async (cont
   await mkdir(join(root, "reports"), { recursive: true });
   const target = join(root, "target.json");
   await writeFile(target, "{}", { mode: 0o600 });
-  await symlink(target, join(root, "reports", "linked.json"));
-  await assert.rejects(() => store.readReport("linked"), /symbolic link/i);
+  if (await trySymlink(context, target, join(root, "reports", "linked.json"))) await assert.rejects(() => store.readReport("linked"), /symbolic link/i);
   await writeFile(join(root, "reports", "broken.json"), "{}", { mode: 0o600 });
   await assert.rejects(() => store.readReport("broken"), /invalid stored report/i);
   await chmod(target, 0o600);
@@ -524,7 +524,7 @@ test("section-strength scan reports round-trip exact inputs, calculations and st
   assert.equal(report.kind, "planar-section-strength-scan");
   assert.deepEqual(await store.readSectionStrengthScan(report.id), report);
   const mode = (await lstat(join(root, "section-scans", `${report.id}.json`))).mode & 0o777;
-  assert.equal(mode, 0o600);
+  if (process.platform !== "win32") assert.equal(mode, 0o600);
   await assert.rejects(() => store.saveSectionStrengthScan({
     ...record,
     candidates: [{ ...candidates[0]!, calculation: { ...candidates[0]!.calculation, inputHash: "0".repeat(64) } }, candidates[1]!],

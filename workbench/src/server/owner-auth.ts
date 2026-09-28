@@ -23,7 +23,10 @@ export async function loadOrCreateOwnerToken(projectsRoot: string): Promise<stri
 export async function readOwnerToken(projectsRoot: string): Promise<string> {
   const path = join(projectsRoot, OWNER_TOKEN_FILE);
   const metadata = await stat(path);
-  if (!metadata.isFile() || (metadata.mode & 0o077) !== 0) {
+  // Windows has no POSIX permission bits (mode always reads 0o666); the token
+  // lives under the user's profile, which NTFS ACLs already keep private.
+  const groupOrWorldAccess = process.platform !== "win32" && (metadata.mode & 0o077) !== 0;
+  if (!metadata.isFile() || groupOrWorldAccess) {
     throw new Error("Workbench owner token must be a private regular file");
   }
   const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);

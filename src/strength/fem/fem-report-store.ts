@@ -1,7 +1,7 @@
 import { constants } from "node:fs";
 import { mkdir, open, readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { z } from "zod";
 
 import {
@@ -733,7 +733,7 @@ const femReportSchema = z.object({
         && result.totalResultantMomentNmm.every((value, axis) => Math.abs(value - result.surfaceLoads.reduce((sum, item) => sum + item.resultantMomentNmm[axis]!, result.resultantLoads.reduce((total, item) => total + item.appliedMomentAtOriginNmm[axis]!, 0))) <= Math.max(1e-6, Math.abs(value) * 1e-9));
       const inputsMatch = !!loadCase && result.name === loadCase.name
         && result.meshSha256 === report.mesh.meshSha256
-        && result.loadFile.startsWith("/")
+        && isAbsolute(result.loadFile)
         && result.surfaceLoads.length === loadCase.faceLoads.length
         && result.surfaceLoads.every((item, loadIndex) => item.faceId === loadCase.faceLoads[loadIndex]?.faceId
           && item.tractionNPerMm2.every((value, axis) => value === loadCase.faceLoads[loadIndex]?.tractionNPerMm2[axis])

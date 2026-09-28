@@ -118,8 +118,8 @@
     "accept:fem-face-mapping": "node scripts/verify-fem-face-mapping-live.ts",
     "accept:fem-static-patch": "node scripts/verify-fem-static-patch-live.ts",
     "accept:fem-bracket": "node scripts/verify-fem-bracket-live.ts",
-    "test": "node --test --experimental-test-coverage 'src/**/*.test.ts' 'scripts/**/*.test.ts'",
-    "test:fem-mesh": "python3 -m unittest discover -s scripts/fem -p 'test_*.py'",
+    "test": "node --test --experimental-test-coverage \"src/**/*.test.ts\" \"scripts/**/*.test.ts\"",
+    "test:fem-mesh": "node scripts/run-python.ts -m unittest discover -s scripts/fem -p \"test_*.py\"",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

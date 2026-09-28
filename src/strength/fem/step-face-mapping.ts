@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { access, readFile, realpath } from "node:fs/promises";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 import { MAX_LAYER_INTERFACE_PLANES, MAX_LAYERWISE_FEA_LAYERS } from "./layer-plane-plan.ts";
+import { defaultPythonExecutable } from "./python.ts";
 
 export type Vector3 = [number, number, number];
 export interface NativePlanarFaceReference {
@@ -90,7 +91,7 @@ export async function mapNativePlanarFacesToStep(
   const request = validateRequest(stepPath, faces, toleranceMm);
   const helper = await realpath(PYTHON_HELPER);
   const inputPath = await realpath(resolve(stepPath));
-  const pythonPath = process.env.PLASTICITY_FEA_PYTHON ?? "python3";
+  const pythonPath = defaultPythonExecutable();
   const pythonPathEnv = process.env.PLASTICITY_GMSH_PYTHON_PATH
     ? resolve(process.env.PLASTICITY_GMSH_PYTHON_PATH)
     : join(await homebrewPackageRootForGmsh(), "lib");
@@ -165,7 +166,7 @@ export async function generateCalculiXMeshFromStep(
   const requestedOutputPath = resolve(meshOutputPath);
   const requestedElementSICNPath = requestedOutputPath.replace(/\.inp$/i, "-sicn.csv");
   const requestedLoadPath = surfaceLoads.length || resultantLoads.length ? requestedOutputPath.replace(/\.inp$/i, "-loads.inp") : undefined;
-  const pythonPath = process.env.PLASTICITY_FEA_PYTHON ?? "python3";
+  const pythonPath = defaultPythonExecutable();
   const pythonPathEnv = process.env.PLASTICITY_GMSH_PYTHON_PATH
     ? resolve(process.env.PLASTICITY_GMSH_PYTHON_PATH)
     : join(await homebrewPackageRootForGmsh(), "lib");
@@ -363,8 +364,8 @@ export function parseStepFaceMappingResult(
 }
 
 function parseMeshSummary(value: unknown): CalculiXMeshSummary {
-  if (!isRecord(value) || typeof value.meshFile !== "string" || !value.meshFile.startsWith("/")
-    || typeof value.elementSICNFile !== "string" || !value.elementSICNFile.startsWith("/")
+  if (!isRecord(value) || typeof value.meshFile !== "string" || !isAbsolute(value.meshFile)
+    || typeof value.elementSICNFile !== "string" || !isAbsolute(value.elementSICNFile)
     || !isPositive(value.meshSizeMm) || value.elementFamily !== "C3D4"
     || !Number.isInteger(value.nodeCount) || (value.nodeCount as number) < 4 || (value.nodeCount as number) > 1_000_000
     || !Number.isInteger(value.tetrahedronCount) || (value.tetrahedronCount as number) < 1 || (value.tetrahedronCount as number) > 500_000
@@ -374,7 +375,7 @@ function parseMeshSummary(value: unknown): CalculiXMeshSummary {
     || !isRecord(value.boundsMm) || !isVector(value.boundsMm.min) || !isVector(value.boundsMm.max)
     || !Array.isArray(value.nodeSets) || value.nodeSets.length < 1
     || !Number.isInteger(value.sharedSurfaceNodeCount) || (value.sharedSurfaceNodeCount as number) < 0
-    || !(value.loadFile === null || (typeof value.loadFile === "string" && value.loadFile.startsWith("/")))
+    || !(value.loadFile === null || (typeof value.loadFile === "string" && isAbsolute(value.loadFile)))
     || !Array.isArray(value.surfaceLoads) || !Array.isArray(value.resultantLoads)
     || !isVector(value.totalResultantN) || !isVector(value.totalResultantMomentNmm)) {
     throw new Error("Gmsh returned invalid CalculiX mesh evidence");
@@ -413,7 +414,7 @@ function parseMeshSummary(value: unknown): CalculiXMeshSummary {
   }
   const codeAsterFields = [value.codeAsterMeshFile, value.codeAsterMeshFormat, value.codeAsterPhysicalGroups];
   if (codeAsterFields.some((field) => field !== undefined)) {
-    if (typeof value.codeAsterMeshFile !== "string" || !value.codeAsterMeshFile.startsWith("/")
+    if (typeof value.codeAsterMeshFile !== "string" || !isAbsolute(value.codeAsterMeshFile)
       || value.codeAsterMeshFormat !== "GMSH-2.2"
       || !Array.isArray(value.codeAsterPhysicalGroups) || value.codeAsterPhysicalGroups.length !== nodeSets.length + 1) {
       throw new Error("Gmsh returned incomplete Code_Aster mesh evidence");

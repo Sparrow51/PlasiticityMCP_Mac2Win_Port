@@ -24,7 +24,7 @@ test("STEP import provenance survives store recreation and remains immutable", a
   assert.deepEqual(await restarted.get(record.id), record);
   assert.deepEqual((await restarted.list()).records[0]?.sourceArchive, record.sourceArchive);
   assert.deepEqual(await restarted.list(), { total: 1, offset: 0, limit: 20, records: [record] });
-  assert.equal((await stat(join(root, `${record.id}.json`))).mode & 0o777, 0o600);
+  if (process.platform !== "win32") assert.equal((await stat(join(root, `${record.id}.json`))).mode & 0o777, 0o600);
   await assert.rejects(() => restarted.create({ ...record, artifactHash: "b".repeat(64) }), /EEXIST/);
   assert.deepEqual(await restarted.get(record.id), record);
 });
@@ -77,7 +77,7 @@ test("3MF reference import provenance survives store recreation with every impor
   const restarted = new StepImportReferenceStore(root);
   assert.deepEqual(await restarted.get(record.id), record);
   assert.deepEqual((await restarted.list()).records[0]?.referenceMeshes, record.referenceMeshes);
-  assert.equal((await stat(join(root, `${record.id}.json`))).mode & 0o777, 0o600);
+  if (process.platform !== "win32") assert.equal((await stat(join(root, `${record.id}.json`))).mode & 0o777, 0o600);
   await assert.rejects(() => restarted.create({
     ...record,
     artifactHash: "d".repeat(64),

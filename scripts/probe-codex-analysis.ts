@@ -3,6 +3,7 @@ import { isAbsolute } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { resolveAnalysisProfile } from "../src/codex/analysis-profile.ts";
+import { resolveCodexExecutable, WINDOWS_ENVIRONMENT } from "../src/codex/environment.ts";
 import { JsonRpcProcess } from "../src/codex/json-rpc.ts";
 
 interface ProbeOptions {
@@ -45,7 +46,7 @@ async function main(): Promise<void> {
     console.log(HELP);
     return;
   }
-  const resolved = await resolveAnalysisProfile("codex");
+  const resolved = await resolveAnalysisProfile(resolveCodexExecutable("codex"));
   if (!resolved.available) {
     console.log(JSON.stringify(resolved, null, 2));
     process.exitCode = 2;
@@ -64,7 +65,7 @@ async function runLiveProbe(
   threadOverrides: Record<string, unknown>,
   options: ProbeOptions,
 ): Promise<Record<string, unknown>> {
-  const rpc = new JsonRpcProcess({ executable: "codex", args: argv, env: allowedEnvironment(process.env) });
+  const rpc = new JsonRpcProcess({ executable: resolveCodexExecutable("codex"), args: argv, env: allowedEnvironment(process.env) });
   const events: { method: string; params: unknown }[] = [];
   const forbiddenItems: string[] = [];
   let finalText = "";
@@ -191,7 +192,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, onTimeout:
 
 function allowedEnvironment(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const result: NodeJS.ProcessEnv = {};
-  for (const key of ["HOME", "CODEX_HOME", "PATH", "SHELL", "TMPDIR", "USER", "LOGNAME", "LANG", "LC_ALL", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE"]) {
+  for (const key of ["HOME", "CODEX_HOME", "PATH", "SHELL", "TMPDIR", "USER", "LOGNAME", "LANG", "LC_ALL", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE", ...WINDOWS_ENVIRONMENT]) {
     if (source[key] !== undefined) result[key] = source[key];
   }
   return result;

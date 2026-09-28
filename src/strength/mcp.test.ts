@@ -3634,7 +3634,8 @@ test("static FEA rejects duplicate support faces before starting an analysis", a
 test("strength MCP is bounded and has no Workbench or HTTP service dependency", async () => {
   const source = await readFile(new URL("./mcp.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /from\s+["'][^"']*workbench|\bexpress\b|node:http|https?:\/\//i);
-  assert.ok(source.length < 80_000);
+  // Measure LF source so a CRLF (Windows) checkout does not inflate the size.
+  assert.ok(source.replaceAll("\r\n", "\n").length < 80_000);
 });
 
 async function createHarness(

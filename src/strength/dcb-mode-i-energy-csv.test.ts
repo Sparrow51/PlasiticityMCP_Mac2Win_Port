@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { importDcbModeIEnergyCsv, dcbModeIEnergyCsvInputSchema } from "./dcb-mode-i-energy-csv.ts";
+import { trySymlink } from "../symlink.test-support.ts";
 
 const process = {
   printerId: "creality-k1c",
@@ -126,6 +127,5 @@ test("rejects wrong specimen row, missing rows, displacement sign, malformed CSV
   await writeFile(path, "specimen,load_kN,opening_um\nA,-0.01,2160\nA,-0.008,2744\nA,-0.006,\"bad\n");
   await assert.rejects(importDcbModeIEnergyCsv(base(path)), /unterminated quoted field/i);
   const link = join(root, "linked.csv");
-  await symlink(path, link);
-  await assert.rejects(importDcbModeIEnergyCsv(base(link)), /regular non-symlink file/i);
+  if (await trySymlink(context, path, link)) await assert.rejects(importDcbModeIEnergyCsv(base(link)), /regular non-symlink file/i);
 });

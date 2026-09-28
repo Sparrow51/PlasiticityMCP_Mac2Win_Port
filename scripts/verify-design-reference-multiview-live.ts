@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, open, readFile } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
+import { basename, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { call, stageImage, startMcp, type LiveMcp } from "./verify-strength-live.ts";
@@ -33,7 +33,7 @@ function parseArgs(argv: string[]): Options {
       options.output = value;
     } else if (argument === "--image") {
       const value = argv[++index];
-      if (!value || !value.startsWith("/")) throw new Error("--image requires an absolute PNG, JPEG, HEIC, or HEIF path");
+      if (!value || !isAbsolute(value)) throw new Error("--image requires an absolute PNG, JPEG, HEIC, or HEIF path");
       options.images.push(value);
     } else throw new Error(`Unknown argument: ${String(argument)}`);
   }

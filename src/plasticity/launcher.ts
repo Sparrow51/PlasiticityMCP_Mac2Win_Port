@@ -1,5 +1,6 @@
-import { execFile } from "node:child_process";
-import { isAbsolute } from "node:path";
+import { execFile, spawn } from "node:child_process";
+import { existsSync, readdirSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 
 import { CdpClient } from "../cdp/client.ts";
@@ -74,10 +75,10 @@ export async function ensurePlasticityCdp(options: {
     throw new Error("Plasticity is running without MCP access. The launcher will not close or restart it. Save your work, quit Plasticity, then run the launcher again to enable loopback debugging.");
   }
 
-  const applicationPath = options.applicationPath ?? "/Applications/Plasticity.app";
+  const applicationPath = options.applicationPath ?? process.env.PLASTICITY_APP_PATH ?? defaultApplicationPath();
   const launchArguments = [`--inspect-brk=127.0.0.1:${inspectorPort}`];
   if (options.userDataDirectory) launchArguments.push(`--user-data-dir=${options.userDataDirectory}`);
-  await execFileAsync("open", ["-na", applicationPath, "--args", ...launchArguments]);
+  await launchPlasticity(applicationPath, launchArguments);
   const inspectorTarget = await waitForInspector(inspectorPort);
   const client = await CdpClient.connect(inspectorTarget.webSocketDebuggerUrl);
   try {
@@ -89,8 +90,56 @@ export async function ensurePlasticityCdp(options: {
   return await waitForTargets(endpoint);
 }
 
+export function defaultApplicationPath(): string {
+  if (process.platform !== "win32") return "/Applications/Plasticity.app";
+  // Per-user installs live in %LOCALAPPDATA%; the machine-wide MSI uses Program Files.
+  const roots = [
+    join(process.env.LOCALAPPDATA ?? "", "Plasticity"),
+    join(process.env.ProgramFiles ?? "C:\\Program Files", "Plasticity"),
+  ];
+  for (const root of roots) {
+    // Squirrel installs keep each version in app-<version>; launch the exe directly so
+    // our arguments are not swallowed by the top-level update stub.
+    const versions = existsSync(root)
+      ? readdirSync(root)
+        .filter((name) => /^app-\d+(\.\d+)*$/u.test(name) && existsSync(join(root, name, "Plasticity.exe")))
+        .sort((a, b) => compareVersions(b.slice(4), a.slice(4)))
+      : [];
+    const preferred = versions.includes("app-26.1.3") ? "app-26.1.3" : versions[0];
+    if (preferred) return join(root, preferred, "Plasticity.exe");
+  }
+  throw new Error(`Could not find Plasticity under ${roots.join(" or ")}. Set PLASTICITY_APP_PATH to the full path of Plasticity.exe.`);
+}
+
+function compareVersions(a: string, b: string): number {
+  const left = a.split(".").map(Number);
+  const right = b.split(".").map(Number);
+  for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
+async function launchPlasticity(applicationPath: string, launchArguments: string[]): Promise<void> {
+  if (process.platform === "darwin") {
+    await execFileAsync("open", ["-na", applicationPath, "--args", ...launchArguments]);
+    return;
+  }
+  if (!existsSync(applicationPath)) throw new Error(`Plasticity executable not found: ${applicationPath}`);
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(applicationPath, launchArguments, { detached: true, stdio: "ignore", windowsHide: false });
+    child.once("error", reject);
+    child.once("spawn", () => { child.unref(); resolve(); });
+  });
+}
+
 async function isPlasticityRunning(): Promise<boolean> {
   try {
+    if (process.platform === "win32") {
+      const { stdout } = await execFileAsync("tasklist", ["/FI", "IMAGENAME eq Plasticity.exe", "/NH", "/FO", "CSV"], { encoding: "utf8" });
+      return /"Plasticity\.exe"/iu.test(stdout);
+    }
     await execFileAsync("pgrep", ["-x", "Plasticity"]);
     return true;
   } catch {

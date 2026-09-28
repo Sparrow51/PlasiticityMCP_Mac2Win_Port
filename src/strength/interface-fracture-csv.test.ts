@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import { importInterfaceFractureCsv } from "./interface-fracture-csv.ts";
+import { trySymlink } from "../symlink.test-support.ts";
 
 test("previews fully processed DCB CSV curves per specimen with converted units and source provenance", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-interface-fracture-csv-"));
@@ -94,6 +95,5 @@ test("rejects uncorrected, incomplete, malformed and symlinked fracture CSV inpu
   await writeFile(path, "specimen,opening,traction\nA,0,0\nA,0.01,1\nA,0.01,0.5\nA,0.02,0\n");
   await assert.rejects(importInterfaceFractureCsv(base), /strictly increasing/i);
   const link = join(root, "alias.csv");
-  await symlink(path, link);
-  await assert.rejects(importInterfaceFractureCsv({ ...base, path: link }), /regular non-symlink/i);
+  if (await trySymlink(context, path, link)) await assert.rejects(importInterfaceFractureCsv({ ...base, path: link }), /regular non-symlink/i);
 });

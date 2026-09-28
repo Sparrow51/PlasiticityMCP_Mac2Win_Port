@@ -89,7 +89,7 @@ test("exports selected native bodies as a validated, millimeter-scaled 3MF packa
     assert.deepEqual(call?.bindings, ["ThreeMfExportFactory"]);
     const exportArgs = call?.values[0] as { ids: number[]; path: string; scale: number; chordTolerance: number; angleToleranceDegrees: number };
     assert.deepEqual({ ...exportArgs, path: "<staging>" }, { ids: [7], path: "<staging>", scale: 0.001, chordTolerance: 0.00005, angleToleranceDegrees: 15 });
-    assert.match(exportArgs.path, /\.plasticity-3mf-[^/]+\/geometry\.3mf$/u);
+    assert.match(exportArgs.path, /\.plasticity-3mf-[^\\/]+[\\/]geometry\.3mf$/u);
     assert.match(call?.source ?? "", /factory\.shells = args\.ids\.map\(find\)/u);
     assert.match(call?.source ?? "", /factory\.scale = args\.scale/u);
     assert.deepEqual(result, {
@@ -158,7 +158,7 @@ test("exports selected native bodies as a validated millimeter OBJ mesh", async 
     assert.deepEqual(call?.bindings, ["OBJExportFactory"]);
     const exportArgs = call?.values[0] as { ids: number[]; path: string; chordTolerance: number; angleToleranceDegrees: number };
     assert.deepEqual({ ...exportArgs, path: "<staging>" }, { ids: [7], path: "<staging>", chordTolerance: 0.00008, angleToleranceDegrees: 12 });
-    assert.match(exportArgs.path, /\.plasticity-obj-[^/]+\/geometry\.obj$/u);
+    assert.match(exportArgs.path, /\.plasticity-obj-[^\\/]+[\\/]geometry\.obj$/u);
     assert.match(call?.source ?? "", /factory\.unit = 'millimeter'/u);
     assert.match(call?.source ?? "", /factory\.upAxis = 'z'/u);
     assert.match(call?.source ?? "", /factory\.showWireframe = false/u);
@@ -762,7 +762,7 @@ test("exports selected native bodies as a validated Parasolid file without overw
 
     assert.deepEqual(call?.bindings, ["ExportCadFactory"]);
     assert.match(call?.source ?? "", /factory\.items = args\.ids\.map\(find\)/u);
-    assert.match((call?.values[0] as { path: string }).path, /\.plasticity-parasolid-[^/]+\/geometry\.x_t$/u);
+    assert.match((call?.values[0] as { path: string }).path, /\.plasticity-parasolid-[^\\/]+[\\/]geometry\.x_t$/u);
     assert.deepEqual(result, { path: output, bytes: payload.length, format: "parasolid-text" });
     assert.deepEqual(await readFile(output), payload);
     await assert.rejects(operations.exportParasolid([7], output, state.revision), /overwrite/u);

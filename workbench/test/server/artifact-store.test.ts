@@ -15,9 +15,9 @@ async function readAll(stream: NodeJS.ReadableStream): Promise<Buffer> {
 
 test("stores identical bytes once and opens them by hash", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-workbench-artifacts-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "project.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const artifacts = new ArtifactStore(join(root, "objects"), database);
 
   const first = await artifacts.put(Buffer.from("step"), {
@@ -38,9 +38,9 @@ test("stores identical bytes once and opens them by hash", async (context) => {
 
 test("rejects unsafe display names and oversized content", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-workbench-limits-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "project.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const artifacts = new ArtifactStore(join(root, "objects"), database, { maxBytes: 3 });
 
   await assert.rejects(

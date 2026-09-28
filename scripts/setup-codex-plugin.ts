@@ -3,6 +3,8 @@ import { chmod, mkdir, readFile, realpath, rename, writeFile } from "node:fs/pro
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
+import { resolveCodexExecutable } from "../src/codex/environment.ts";
+
 const root = await realpath(resolve(import.meta.dirname, ".."));
 const home = join(homedir(), ".plasticity-mcp");
 const marketplace = "plasticity";
@@ -39,7 +41,7 @@ async function writePrivate(name: string, value: string): Promise<void> {
 }
 
 function codex(args: string[]): string {
-  return execFileSync("codex", args, { cwd: root, encoding: "utf8" });
+  return execFileSync(resolveCodexExecutable("codex"), args, { cwd: root, encoding: "utf8" });
 }
 
 function codexJson<T>(args: string[]): T {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { resolve } from "node:path";
 import test from "node:test";
 
 import { parseCohesiveStepMeshResult, validateCohesiveStepMeshRequest, type CohesiveStepMeshRequest } from "./cohesive-step-mesh.ts";
@@ -12,8 +13,8 @@ const face = (faceId: string, z: number, normal: [number, number, number]) => ({
 });
 
 const request: CohesiveStepMeshRequest = {
-  stepPath: "/tmp/source.step",
-  outputPath: "/tmp/work/cohesive.msh",
+  stepPath: resolve("/tmp/source.step"),
+  outputPath: resolve("/tmp/work/cohesive.msh"),
   splitPlanes: [{ pointMm: [0, 0, 2], normalGlobal: [0, 0, 1] }],
   meshSizeMm: 1.5,
   boundaryFaces: [face("bottom", 0, [0, 0, -1]), face("top", 4, [0, 0, 1])],

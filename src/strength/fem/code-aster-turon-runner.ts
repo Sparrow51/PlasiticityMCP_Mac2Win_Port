@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { constants } from "node:fs";
 import { access, copyFile, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { buildCodeAsterTuronDeck, type CodeAsterTuronDeckInput } from "./code-aster-turon-deck.ts";
 
@@ -70,7 +71,7 @@ export async function runCodeAsterTuronCase(
   const medPath = join(workspace, "result.med");
   await ensureDoesNotExist([verifierPath, commandPath, exportPath, medPath]);
   await Promise.all([
-    copyFile(MED_VERIFIER.pathname, verifierPath, constants.COPYFILE_EXCL),
+    copyFile(fileURLToPath(MED_VERIFIER), verifierPath, constants.COPYFILE_EXCL),
     writeFile(commandPath, deck.commandFile, { flag: "wx", mode: 0o600 }),
     writeFile(exportPath, deck.exportFile, { flag: "wx", mode: 0o600 }),
   ]);

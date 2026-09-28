@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import { CODEX_ERROR_CATEGORIES, MAX_ANALYSIS_IMAGES, type AnalysisFailureDiagnostics, type AnalysisRequest, type AnalysisResult, type CodexErrorCategory } from "../strength/contracts.ts";
 import { analysisResultSchema } from "../strength/schemas.ts";
 import type { AnalysisProfile } from "./analysis-profile.ts";
+import { WINDOWS_ENVIRONMENT } from "./environment.ts";
 import { JsonRpcProcess } from "./json-rpc.ts";
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -145,6 +146,7 @@ class IsolatedAnalysisClient implements AnalysisClient {
     let threadId = "";
     let turnId = "";
     let turnFinished = false;
+    let turnStart: Promise<unknown> | undefined;
     const finalTexts = new Map<string, string>();
     const earlyCompletions = new Map<string, { status: string; failureDiagnostics?: AnalysisFailureDiagnostics }>();
     const completion = deferred<{ status: string; failureDiagnostics?: AnalysisFailureDiagnostics }>();
@@ -193,7 +195,9 @@ class IsolatedAnalysisClient implements AnalysisClient {
         throw new AnalysisClientError("CODEX_PROTOCOL_ERROR", "thread/start returned an unexpected result");
       }
       threadId = started.thread.id;
-      const turn = await rpc.request("turn/start", {
+      // No signal here: if we are aborted mid-request we still want the turn ID
+      // so the turn the server already started can be interrupted below.
+      turnStart = rpc.request("turn/start", {
         threadId,
         input: [
           { type: "text", text: analysisPrompt(input) },
@@ -203,7 +207,8 @@ class IsolatedAnalysisClient implements AnalysisClient {
         runtimeWorkspaceRoots: [],
         approvalPolicy: "never",
         outputSchema: analysisOutputJsonSchema(),
-      }, { signal });
+      });
+      const turn = await Promise.race([turnStart, abortPromise(signal)]);
       if (!isRecord(turn) || !isRecord(turn.turn) || typeof turn.turn.id !== "string") {
         throw new AnalysisClientError("CODEX_PROTOCOL_ERROR", "turn/start returned an unexpected result");
       }
@@ -233,6 +238,7 @@ class IsolatedAnalysisClient implements AnalysisClient {
       // wider than the exact optional properties used by our public contract.
       return parsed.data as AnalysisResult;
     } catch (error) {
+      if (!turnId && turnStart) turnId = await lateTurnId(turnStart);
       if (turnId && !turnFinished) {
         try {
           await rpc.request("turn/interrupt", { threadId, turnId }, { timeoutMs: 1_000 });
@@ -563,6 +569,17 @@ function analysisPrompt(input: AnalysisRequest): string {
   return `${instructions} Return at most one next-step question package. Ask the smallest decision-relevant question package that should be answered next; defer facts needed only for later steps. Each supplied answer may include the full prior question text; use it to adapt the next question. If the user does not know, ask one useful contextual follow-up rather than listing every unknown. Input JSON follows:\n${payload}`;
 }
 
+async function lateTurnId(turnStart: Promise<unknown>): Promise<string> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<undefined>((resolve) => { timer = setTimeout(() => resolve(undefined), 1_000); });
+  try {
+    const turn = await Promise.race([turnStart.catch(() => undefined), timeout]);
+    return isRecord(turn) && isRecord(turn.turn) && typeof turn.turn.id === "string" ? turn.turn.id : "";
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function deferred<T>(): { promise: Promise<T>; resolve(value: T): void; reject(error: Error): void } {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
@@ -587,7 +604,7 @@ function abortSignalError(): Error {
 
 function allowedEnvironment(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const result: NodeJS.ProcessEnv = {};
-  for (const key of ["HOME", "CODEX_HOME", "PATH", "SHELL", "TMPDIR", "USER", "LOGNAME", "LANG", "LC_ALL", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE"]) {
+  for (const key of ["HOME", "CODEX_HOME", "PATH", "SHELL", "TMPDIR", "USER", "LOGNAME", "LANG", "LC_ALL", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE", ...WINDOWS_ENVIRONMENT]) {
     if (source[key] !== undefined) result[key] = source[key];
   }
   return result;

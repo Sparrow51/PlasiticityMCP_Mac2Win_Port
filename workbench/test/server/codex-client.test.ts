@@ -21,7 +21,6 @@ class RecordingJournal implements CodexTurnJournal {
 
 test("initializes, starts one turn, and reports a child crash without retry", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-codex-crash-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const logPath = join(root, "methods.log");
   const journal = new RecordingJournal();
   const client = await CodexClient.start({
@@ -30,6 +29,7 @@ test("initializes, starts one turn, and reports a child crash without retry", as
     journal,
   });
   context.after(async () => await client.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const thread = await client.startThread({ cwd: root });
   const turn = await client.startTurn(thread.id, [{ type: "text", text: "build a bracket" }]);
 
@@ -41,7 +41,6 @@ test("initializes, starts one turn, and reports a child crash without retry", as
 
 test("resumes a thread and completes a streamed turn", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-codex-complete-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const journal = new RecordingJournal();
   const events: string[] = [];
   const client = await CodexClient.start({
@@ -51,6 +50,7 @@ test("resumes a thread and completes a streamed turn", async (context) => {
     onEvent: (event) => events.push(event.type),
   });
   context.after(async () => await client.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   assert.equal((await client.resumeThread("existing-thread")).id, "existing-thread");
   const turn = await client.startTurn("existing-thread", [{ type: "text", text: "continue" }]);
   const completion = await turn.completed;
@@ -62,12 +62,12 @@ test("resumes a thread and completes a streamed turn", async (context) => {
 
 test("rejects malformed app-server output", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-codex-malformed-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const client = await CodexClient.start({
     executable: process.execPath,
     args: [fakeServerPath, "--malformed-after-init", join(root, "methods.log")],
   });
   context.after(async () => await client.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   await assert.rejects(() => client.startThread({ cwd: root }), /invalid JSON/i);
 });
 

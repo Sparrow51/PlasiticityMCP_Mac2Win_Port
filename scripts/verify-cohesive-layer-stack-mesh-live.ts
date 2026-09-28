@@ -6,6 +6,7 @@ import { delimiter, dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 
 import { generateCohesiveMeshFromStep } from "../src/strength/fem/cohesive-step-mesh.ts";
+import { defaultPythonExecutable } from "../src/strength/fem/python.ts";
 
 const layerCount = Number(process.env.PLASTICITY_COHESIVE_LAYER_COUNT ?? 34);
 if (!Number.isSafeInteger(layerCount) || layerCount < 2 || layerCount > 256) {
@@ -18,7 +19,7 @@ try {
   const stepPath = join(workspace, "box.step");
   const splitAngle = Math.PI / 4;
   const splitNormal = [Math.sin(splitAngle), 0, Math.cos(splitAngle)] as [number, number, number];
-  const python = process.env.PLASTICITY_FEA_PYTHON ?? "python3";
+  const python = defaultPythonExecutable();
   const createdStep = spawnSync(python, [
     "-c",
     "import gmsh,sys,json,math; gmsh.initialize(); gmsh.option.setNumber('General.Terminal',0); gmsh.model.add('layer-stack-mesh-acceptance'); gmsh.model.occ.addBox(0,0,0,10,10,10); gmsh.model.occ.rotate([(3,1)],0,0,0,0,1,0,math.pi/4); gmsh.model.occ.synchronize(); n=[math.sin(math.pi/4),0,math.cos(math.pi/4)]; faces=[];\nfor _,tag in gmsh.model.getEntities(2):\n c=gmsh.model.occ.getCenterOfMass(2,tag); uv=gmsh.model.getParametrization(2,tag,c); normal=gmsh.model.getNormal(tag,uv); length=math.sqrt(sum(v*v for v in normal)); normal=[v/length for v in normal];\n if abs(abs(sum(normal[i]*n[i] for i in range(3)))-1)<1e-6:\n  b=gmsh.model.occ.getBoundingBox(2,tag); faces.append({'faceId':'support' if sum(normal[i]*n[i] for i in range(3))<0 else 'loaded','surfaceType':'Plane','centerMm':list(c),'normal':normal,'boundsMm':{'min':list(b[:3]),'max':list(b[3:])}})\ngmsh.write(sys.argv[1]); print(json.dumps(faces)); gmsh.finalize()",

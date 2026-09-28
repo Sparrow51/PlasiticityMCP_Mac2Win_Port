@@ -16,6 +16,7 @@ test("owner token is private, stable across starts, and rejects a readable secre
   assert.equal(await loadOrCreateOwnerToken(root), token);
   assert.equal(await readOwnerToken(root), token);
   const path = join(root, "owner-token");
+  if (process.platform === "win32") return; // no POSIX permission bits to check
   assert.equal((await stat(path)).mode & 0o077, 0);
   await chmod(path, 0o644);
   await assert.rejects(readOwnerToken(root), /private regular file/);

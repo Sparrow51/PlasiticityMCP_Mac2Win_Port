@@ -152,7 +152,9 @@ async function executeDocker(workspace: string, solverVersion: "15.2" | "17.4", 
 }
 
 export function buildCodeAsterDockerArgs(workspace: string, uid: number, gid: number, solverVersion: "15.2" | "17.4" = "15.2"): string[] {
-  if (!Number.isSafeInteger(uid) || uid < 0 || !Number.isSafeInteger(gid) || gid < 0 || /[:,]/.test(workspace)) {
+  // A Windows drive letter ("C:\...") is the only colon Docker's --mount accepts in src.
+  const mountPath = process.platform === "win32" ? workspace.replace(/^[A-Za-z]:/u, "") : workspace;
+  if (!Number.isSafeInteger(uid) || uid < 0 || !Number.isSafeInteger(gid) || gid < 0 || /[:,]/.test(mountPath)) {
     throw new Error("Code_Aster container identity or workspace path is invalid");
   }
   const common = [

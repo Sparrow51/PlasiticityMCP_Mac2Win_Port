@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
 import { constants } from "node:fs";
 import { access, realpath } from "node:fs/promises";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { NativePlanarFaceReference, Vector3 } from "./step-face-mapping.ts";
 import { MAX_LAYER_INTERFACE_PLANES } from "./layer-plane-plan.ts";
+import { defaultPythonExecutable } from "./python.ts";
 
 const COHESIVE_MESH_HELPER = fileURLToPath(new URL("../../../scripts/fem/cohesive-mesh.py", import.meta.url));
 const MESH_TIMEOUT_MS = 120_000;
@@ -57,7 +58,7 @@ export async function generateCohesiveMeshFromStep(request: CohesiveStepMeshRequ
   } catch (error) {
     if (!isMissingFile(error)) throw error;
   }
-  const pythonPath = process.env.PLASTICITY_FEA_PYTHON ?? "python3";
+  const pythonPath = defaultPythonExecutable();
   const gmshPythonPath = process.env.PLASTICITY_GMSH_PYTHON_PATH
     ? resolve(process.env.PLASTICITY_GMSH_PYTHON_PATH)
     : await homebrewPackageRootForGmsh();
@@ -86,7 +87,7 @@ export function validateCohesiveStepMeshRequest(request: CohesiveStepMeshRequest
     || ![".step", ".stp"].includes(request.stepPath.slice(request.stepPath.lastIndexOf(".")).toLowerCase())) {
     throw new Error("Cohesive mesh generation requires a STEP input path");
   }
-  if (typeof request.outputPath !== "string" || !request.outputPath.startsWith("/") || !request.outputPath.toLowerCase().endsWith(".msh")) {
+  if (typeof request.outputPath !== "string" || !isAbsolute(request.outputPath) || !request.outputPath.toLowerCase().endsWith(".msh")) {
     throw new Error("Cohesive mesh outputPath must be an absolute .msh path");
   }
   if (!Number.isFinite(request.meshSizeMm) || request.meshSizeMm <= 0 || request.meshSizeMm > 100) {

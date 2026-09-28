@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve, sep } from "node:path";
+import { basename, join, resolve, sep } from "node:path";
 
 import type { ManufacturingProfile, ManufacturingProfileRecord } from "../../shared/contracts.ts";
 
@@ -22,19 +22,40 @@ export interface ManufacturingProfileCatalog {
   adapters: Array<{ id: "creality-print" | "orca-slicer" | "bambu-studio"; available: boolean; executable?: string }>;
 }
 
-const DEFAULT_CREality_ROOT = "/Applications/Creality Print.app/Contents/Resources/profiles/Creality";
-const DEFAULT_CREality_EXECUTABLE = "/Applications/Creality Print.app/Contents/MacOS/CrealityPrint";
+const WINDOWS = process.platform === "win32";
+const PROGRAM_FILES = process.env.ProgramFiles ?? "C:\\Program Files";
+const WINDOWS_CREALITY_BASE = join(PROGRAM_FILES, "Creality");
+const DEFAULT_CREality_ROOT = WINDOWS
+  ? join(WINDOWS_CREALITY_BASE, "Creality Print 6.0", "resources", "profiles", "Creality")
+  : "/Applications/Creality Print.app/Contents/Resources/profiles/Creality";
+const DEFAULT_CREality_EXECUTABLE = WINDOWS
+  ? join(WINDOWS_CREALITY_BASE, "Creality Print 6.0", "CrealityPrint.exe")
+  : "/Applications/Creality Print.app/Contents/MacOS/CrealityPrint";
 const APPLE_SILICON_CREality_ROOT = "/Applications/Creality Print (Apple Silicon).app/Contents/Resources/profiles/Creality";
 const APPLE_SILICON_CREality_EXECUTABLE = "/Applications/Creality Print (Apple Silicon).app/Contents/MacOS/CrealityPrint";
-const DEFAULT_BAMBU_RESOURCES = "/Applications/BambuStudio.app/Contents/Resources";
-const DEFAULT_BAMBU_EXECUTABLE = "/Applications/BambuStudio.app/Contents/MacOS/BambuStudio";
-const DEFAULT_ORCA_RESOURCES = "/Applications/OrcaSlicer.app/Contents/Resources";
-const DEFAULT_ORCA_EXECUTABLE = "/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer";
+const DEFAULT_BAMBU_RESOURCES = WINDOWS ? join(PROGRAM_FILES, "Bambu Studio", "resources") : "/Applications/BambuStudio.app/Contents/Resources";
+const DEFAULT_BAMBU_EXECUTABLE = WINDOWS ? join(PROGRAM_FILES, "Bambu Studio", "bambu-studio.exe") : "/Applications/BambuStudio.app/Contents/MacOS/BambuStudio";
+const DEFAULT_ORCA_RESOURCES = WINDOWS ? join(PROGRAM_FILES, "OrcaSlicer", "resources") : "/Applications/OrcaSlicer.app/Contents/Resources";
+const DEFAULT_ORCA_EXECUTABLE = WINDOWS ? join(PROGRAM_FILES, "OrcaSlicer", "orca-slicer.exe") : "/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer";
+
+// Creality Print for Windows installs into a versioned folder ("Creality Print 6.1"); newest first.
+async function windowsCrealityCandidates(): Promise<Array<{ root: string; executable: string }>> {
+  const folders = await readdir(WINDOWS_CREALITY_BASE).catch(() => [] as string[]);
+  return folders
+    .filter((name) => name.startsWith("Creality Print"))
+    .sort((left, right) => right.localeCompare(left, undefined, { numeric: true }))
+    .map((name) => ({
+      root: join(WINDOWS_CREALITY_BASE, name, "resources", "profiles", "Creality"),
+      executable: join(WINDOWS_CREALITY_BASE, name, "CrealityPrint.exe"),
+    }));
+}
 
 export async function discoverManufacturingProfiles(options: ProfileRegistryOptions = {}): Promise<ManufacturingProfileCatalog> {
   const crealityCandidates = options.crealityProfilesRoot || options.crealityExecutable
     ? [{ root: options.crealityProfilesRoot ?? DEFAULT_CREality_ROOT, executable: options.crealityExecutable ?? DEFAULT_CREality_EXECUTABLE }]
-    : process.arch === "arm64"
+    : WINDOWS
+      ? [...await windowsCrealityCandidates(), { root: DEFAULT_CREality_ROOT, executable: DEFAULT_CREality_EXECUTABLE }]
+      : process.arch === "arm64"
       ? [
           { root: APPLE_SILICON_CREality_ROOT, executable: APPLE_SILICON_CREality_EXECUTABLE },
           { root: DEFAULT_CREality_ROOT, executable: DEFAULT_CREality_EXECUTABLE },
@@ -53,7 +74,7 @@ export async function discoverManufacturingProfiles(options: ProfileRegistryOpti
       readJson(machine), readJson(processProfile), readJson(join(root, "filament", "Generic PLA @Creality K1C 0.4 nozzle.json")).catch(() => undefined),
     ]);
     const host = options.deviceInfoPath ? await findK1cHost(options.deviceInfoPath) : undefined;
-    const machineName = stringValue(machineJson, "name", machine.slice(machine.lastIndexOf("/") + 1, -".json".length));
+    const machineName = stringValue(machineJson, "name", basename(machine, ".json"));
     const processName = stringValue(processJson, "name", "0.20mm Standard");
     const filamentCandidates = await compatibleCrealityFilaments(root, machineName, machineJson.default_filament_profile);
     if (!filamentCandidates.length && filamentJson) {

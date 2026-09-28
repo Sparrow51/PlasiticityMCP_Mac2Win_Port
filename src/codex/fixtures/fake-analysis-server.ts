@@ -13,6 +13,7 @@ process.on("exit", () => {
 });
 
 const lines = createInterface({ input: process.stdin });
+lines.on("close", () => finish(0));
 lines.on("line", (line) => {
   const message = JSON.parse(line) as Record<string, unknown>;
   if (typeof message.method === "string") record(message.method);

@@ -702,10 +702,15 @@ async function recoverDisposableScene(client: Client, initialState: any): Promis
 
 async function ownedCodexChildren(parentPid: number | null): Promise<string[]> {
   if (parentPid === null) return [];
-  const { stdout } = await execFileAsync("ps", ["-axo", "pid=,ppid=,command="], { encoding: "utf8" });
+  const { stdout } = process.platform === "win32"
+    ? await execFileAsync("powershell.exe", [
+      "-NoProfile", "-NonInteractive", "-Command",
+      "Get-CimInstance Win32_Process | ForEach-Object { \"$($_.ProcessId) $($_.ParentProcessId) $($_.CommandLine)\" }",
+    ], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 })
+    : await execFileAsync("ps", ["-axo", "pid=,ppid=,command="], { encoding: "utf8" });
   return stdout.split("\n").map((line) => line.trim()).filter((line) => {
     const match = line.match(/^(\d+)\s+(\d+)\s+(.+)$/);
-    return match?.[2] === String(parentPid) && /codex\s+app-server.*--stdio.*--strict-config/i.test(match[3]!);
+    return match?.[2] === String(parentPid) && /codex(?:\.exe)?"?\s+app-server.*--stdio.*--strict-config/i.test(match[3]!);
   });
 }
 

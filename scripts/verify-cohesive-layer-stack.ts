@@ -6,6 +6,7 @@ import { delimiter, dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 
 import { generateCohesiveMeshFromStep } from "../src/strength/fem/cohesive-step-mesh.ts";
+import { defaultPythonExecutable } from "../src/strength/fem/python.ts";
 import { runCodeAsterCohesiveCase } from "../src/strength/fem/code-aster-cohesive-runner.ts";
 import { codeAsterTuronDeckInputFromCalibration } from "../src/strength/fem/code-aster-turon-deck.ts";
 import { runCodeAsterTuronCase } from "../src/strength/fem/code-aster-turon-runner.ts";
@@ -14,7 +15,7 @@ const workspace = await mkdtemp(join(tmpdir(), "plasticity-cohesive-layer-stack-
 try {
   const gmshPythonPath = await findGmshPythonPath();
   const stepPath = join(workspace, "box.step");
-  const python = process.env.PLASTICITY_FEA_PYTHON ?? "python3";
+  const python = defaultPythonExecutable();
   const splitAngle = Math.PI / 4;
   const splitNormal = [Math.sin(splitAngle), 0, Math.cos(splitAngle)] as [number, number, number];
   const createdStep = spawnSync(python, [

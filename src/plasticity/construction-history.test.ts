@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
 import { ConstructionHistoryStore, type ConstructionHistoryEntry } from "./construction-history.ts";
+import { trySymlink } from "../symlink.test-support.ts";
 
 test("construction history survives a new MCP store instance and pages newest first", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-construction-history-"));
@@ -23,7 +24,7 @@ test("construction history survives a new MCP store instance and pages newest fi
   const remainder = await restarted.list(1, 1);
   assert.deepEqual(remainder.entries, [first]);
   const filename = (await readdir(root)).find((name) => name.endsWith(`${first.id}.json`))!;
-  assert.equal((await stat(join(root, filename))).mode & 0o777, 0o600);
+  if (process.platform !== "win32") assert.equal((await stat(join(root, filename))).mode & 0o777, 0o600);
 });
 
 test("construction history rejects invalid pagination and symbolic-link records", async (context) => {
@@ -34,8 +35,7 @@ test("construction history rejects invalid pagination and symbolic-link records"
   await assert.rejects(() => store.list(0, 101), /1 to 100/);
   const source = join(root, "source.json");
   await writeFile(source, "{}");
-  await symlink(source, join(root, "20260924120000000-33333333-3333-4333-8333-333333333333.json"));
-  await assert.rejects(() => new ConstructionHistoryStore(root).list(), /symbolic link/);
+  if (await trySymlink(context, source, join(root, "20260924120000000-33333333-3333-4333-8333-333333333333.json"))) await assert.rejects(() => new ConstructionHistoryStore(root).list(), /symbolic link/);
 });
 
 function historyEntry(occurredAt: string, status: ConstructionHistoryEntry["status"]): ConstructionHistoryEntry {

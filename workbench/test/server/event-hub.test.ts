@@ -32,7 +32,6 @@ function nextJson(socket: WebSocket): Promise<Record<string, unknown>> {
 
 test("replays persisted events and then streams new project events", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-events-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
   const projects = new SqliteProjectStore(database);
@@ -62,6 +61,7 @@ test("replays persisted events and then streams new project events", async (cont
   assert.equal(foreignStatus, 403);
   const socket = new WebSocket(`${address.origin.replace("http", "ws")}/api/projects/${project.id}/events/ws?token=${token.raw}`);
   context.after(() => socket.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   await onceOpen(socket);
   const replayPromise = nextJson(socket);
   socket.send(JSON.stringify({ type: "resume", after: 0 }));
@@ -84,7 +84,6 @@ test("replays persisted events and then streams new project events", async (cont
 
 test("rejects a token issued for another project", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-events-auth-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
   const projects = new SqliteProjectStore(database);
@@ -103,6 +102,7 @@ test("rejects a token issued for another project", async (context) => {
     await hub.close();
     await service.close();
   });
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projectA = projects.create("A", join(root, "a"));
   const projectB = projects.create("B", join(root, "b"));
   const token = pairing.issue(projectA.id, "view", 60_000);

@@ -150,7 +150,6 @@ test("sliced bounds are required and must fit the selected printer", () => {
 
 test("slices from an immutable profile hash and preserves that identity on the job", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-slice-profile-hash-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
   const projects = new SqliteProjectStore(database);
@@ -246,6 +245,7 @@ test("slices from an immutable profile hash and preserves that identity on the j
   });
   const address = await http.listen();
   context.after(async () => await http.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   assert.deepEqual(await new WorkbenchApiClient(address.origin, "a".repeat(43)).interfaceLayerHeights(project.id, job.id, [1, 3]),
     service.interfaceLayerHeights(project.id, job.id, [1, 3]));
   assert.deepEqual(await new WorkbenchApiClient(address.origin, "a".repeat(43)).layerPathOrientations(project.id, job.id, [1, 2, 4]),
@@ -259,9 +259,9 @@ test("slices from an immutable profile hash and preserves that identity on the j
 
 test("batch slicing prevalidates all parts, then creates independent jobs and reports per-part failures", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-batch-slice-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const artifacts = new ArtifactStore(join(root, "artifacts"), database);
   const project = projects.create("Multipart bracket", root);
@@ -784,9 +784,9 @@ test("Orca-family adapters use immutable profiles and produce one inspectable G-
 
 test("approval is bound to the exact project revision and cannot be reused after edits", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-print-approval-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const artifacts = new ArtifactStore(join(root, "artifacts"), database);
   const project = projects.create("Approved bracket", root);
@@ -806,9 +806,9 @@ test("approval is bound to the exact project revision and cannot be reused after
 
 test("an unavailable Bambu adapter does not turn an approved job into an uncertain submission", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-bambu-unavailable-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const artifacts = new ArtifactStore(join(root, "artifacts"), database);
   const project = projects.create("Bambu bracket", root);
@@ -846,9 +846,9 @@ test("an unavailable Bambu adapter does not turn an approved job into an uncerta
 
 test("approval is bound to the exact DFM warning set", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-print-warning-approval-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const artifacts = new ArtifactStore(join(root, "artifacts"), database);
   const project = projects.create("Warning-bound bracket", root);
@@ -1025,9 +1025,9 @@ test("printer filenames remain short ASCII for localized project names", () => {
 
 test("unknown submissions become approved only after confirmed absence", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-print-reconcile-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const artifacts = new ArtifactStore(join(root, "artifacts"), database);
   const project = projects.create("Reconciled bracket", root);
@@ -1056,9 +1056,9 @@ test("unknown submissions become approved only after confirmed absence", async (
 
 test("service reconciliation never uploads and only transitions on conclusive evidence", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-print-service-reconcile-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const projects = new SqliteProjectStore(database);
   const artifacts = new ArtifactStore(join(root, "artifacts"), database);
   const project = projects.create("Service bracket", root);
@@ -1118,9 +1118,9 @@ test("service reconciliation never uploads and only transitions on conclusive ev
 
 test("preserves a third-party vendor while copying configs into an immutable registry", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "plasticity-profile-registry-"));
-  context.after(async () => await rm(root, { recursive: true, force: true }));
   const database = openDatabase(join(root, "workbench.sqlite"));
   context.after(() => database.close());
+  context.after(async () => await rm(root, { recursive: true, force: true }));
   const source = join(root, "source");
   await Promise.all([
     writeFile(`${source}-machine.json`, JSON.stringify({ printer_model: "Prusa MK4" })),
