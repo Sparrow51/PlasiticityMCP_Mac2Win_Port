@@ -9624,6 +9624,12 @@ export class PlasticityOperations {
     await this.runtime.cdp("Page.bringToFront");
     const hidden = await this.runtime.read<boolean>("function () { return document.hidden; }");
     if (hidden) throw new Error("Plasticity renderer is hidden; activate Plasticity and retry the screenshot");
+    // Visibility, selection and camera edits only mark the viewport dirty; force a redraw
+    // and wait for it so the capture does not return the previous frame.
+    await this.runtime.read(`async function () {
+      for (const viewport of this.viewports ?? []) viewport.setNeedsRender?.();
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }`);
     const frame = await this.runtime.captureScreenshot();
     const data = Buffer.from(frame, "base64");
     const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -9649,7 +9655,12 @@ export class PlasticityOperations {
         await viewport.navigateToOrientation(({ front: 4, back: 1, left: 3, right: 0, top: 2, bottom: 5 })[args.view]);
       }
       if (args.fit) {
-        const bounds = [...this.geo.geometryModel].map(([, item]) => item.model?.FindBox?.()).filter(Boolean);
+        // Frame only what is on screen; hidden bodies should not pull the camera away.
+        const isShown = (item) => {
+          const key = this.db.nodes?.item2key?.(item.view);
+          return key === undefined || (Boolean(this.db.nodes?.isVisible?.(key)) && !this.db.nodes?.isHidden?.(key));
+        };
+        const bounds = [...this.geo.geometryModel].filter(([, item]) => isShown(item)).map(([, item]) => item.model?.FindBox?.()).filter(Boolean);
         if (bounds.length) {
           const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
           for (const box of bounds) for (let i = 0; i < 3; i++) {
